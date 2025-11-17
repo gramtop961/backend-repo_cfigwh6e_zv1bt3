@@ -1,48 +1,84 @@
 """
-Database Schemas
+Database Schemas for Hostel Gate Pass Management System (MongoDB)
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model corresponds to a MongoDB collection.
+Collection name is the lowercase of the class name.
 """
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, Literal
+from datetime import datetime
 
-from pydantic import BaseModel, Field
-from typing import Optional
+class Student(BaseModel):
+    full_name: str = Field(..., description="Student full name")
+    email: EmailStr = Field(..., description="Student email (login)")
+    password_hash: str = Field(..., description="Hashed password")
+    phone: Optional[str] = Field(None, description="Student phone number")
+    roll_no: Optional[str] = Field(None, description="Roll number")
+    hostel: Optional[str] = Field(None, description="Hostel/Block name")
+    room_no: Optional[str] = Field(None, description="Room number")
+    parent_id: Optional[str] = Field(None, description="Reference to parent document _id as string")
+    role: Literal['student'] = 'student'
+    is_active: bool = True
 
-# Example schemas (replace with your own):
+class Parent(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    student_id: Optional[str] = None
+    role: Literal['parent'] = 'parent'
+    is_active: bool = True
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class Warden(BaseModel):
+    full_name: str
+    email: EmailStr
+    password_hash: str
+    hostel: Optional[str] = None
+    role: Literal['warden'] = 'warden'
+    is_active: bool = True
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Admin(BaseModel):
+    full_name: str
+    email: EmailStr
+    password_hash: str
+    role: Literal['admin'] = 'admin'
+    is_active: bool = True
 
-# Add your own schemas here:
-# --------------------------------------------------
+class OTPRecord(BaseModel):
+    request_id: str
+    parent_id: str
+    otp_hash: str
+    salt: str
+    expires_at: datetime
+    attempts: int = 0
+    max_attempts: int = 5
+    consumed: bool = False
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class GatePassRequest(BaseModel):
+    student_id: str
+    reason: str
+    from_datetime: datetime
+    to_datetime: datetime
+    destination: Optional[str] = None
+    status: Literal['submitted', 'parent_verified', 'approved', 'rejected'] = 'submitted'
+    parent_verified_at: Optional[datetime] = None
+    warden_id: Optional[str] = None
+    warden_action_at: Optional[datetime] = None
+
+class QRCode(BaseModel):
+    request_id: str
+    payload: dict
+    image_b64: Optional[str] = None
+    generated_at: datetime
+
+class SecurityLog(BaseModel):
+    request_id: str
+    student_id: str
+    action: Literal['scan_entry', 'scan_exit', 'scan_status']
+    status_at_scan: str
+    meta: Optional[dict] = None
+
+class Session(BaseModel):
+    user_id: str
+    role: Literal['student', 'warden', 'admin']
+    token: str
+    expires_at: datetime
